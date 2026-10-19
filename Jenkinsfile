@@ -1,35 +1,48 @@
 
 pipeline {
-    agent any
+    agent {
+        label 'python'
+    }
 
     stages {
-        stage('Preparacion') {
+        stage('Checkout') {
             steps {
-                echo 'Iniciando CI desde GitHub'
+                checkout scm
+                echo 'Codigo descargado desde GitHub'
             }
         }
 
-        stage('Verificacion') {
+        stage('Preparar entorno') {
             steps {
-                echo 'Verificando el codigo'
-                echo "Commit: ${env.GIT_COMMIT}"
+                sh '''
+                    python3 -m venv .venv
+                    .venv/bin/python -m pip install -r requirements.txt
+                '''
             }
         }
 
-        stage('Pruebas') {
+        stage('Pruebas automatizadas') {
             steps {
-                echo 'Simulando pruebas automatizadas'
+                sh '''
+                    .venv/bin/python -m pytest \
+                        --junitxml=resultados.xml
+                '''
             }
         }
     }
 
     post {
+        always {
+            junit allowEmptyResults: true,
+                  testResults: 'resultados.xml'
+        }
+
         success {
-            echo 'Integracion completada'
+            echo 'Todas las pruebas pasaron'
         }
 
         failure {
-            echo 'Error en la integracion'
+            echo 'Se detectaron errores'
         }
     }
 }
